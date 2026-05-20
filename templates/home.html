@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="video-container">
+    <video autoplay muted loop playsinline id="bg-video">
+        <source src="{{ url_for('static', filename='videos/tornado1.mp4') }}" type="video/mp4">
+    </video>
+
+    <div class="video-overlay">
+        <h1>Welcome to Tornado Tracker</h1>
+        <p>Track, analyze, and explore tornado events across the U.S.</p>
+    </div>
+</div>
+
+<h2 class="mb-3">Active Weather Alerts</h2>
+
+{% if alerts %}
+    {% for alert in alerts %}
+        <div class="alert-box">
+            <h5>{{ alert.properties.headline }}</h5>
+            <p>{{ alert.properties.areaDesc }}</p>
+        </div>
+    {% endfor %}
+{% else %}
+    <p>No active alerts available.</p>
+{% endif %}
+
+{% endblock %}

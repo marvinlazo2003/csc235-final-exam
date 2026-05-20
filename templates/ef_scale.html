@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}EF Scale Guide{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h1 class="text-center mb-4">Enhanced Fujita (EF) Scale</h1>
+
+    <div class="row">
+
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <img src="{{ url_for('static', filename='images/ef0.jpg') }}" class="card-img-top">
+                <div class="card-body">
+                    <h4>EF0 (65–85 mph)</h4>
+                    <p>Light damage: tree branches broken, minor roof damage.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <img src="{{ url_for('static', filename='images/ef1.jpg') }}" class="card-img-top">
+                <div class="card-body">
+                    <h4>EF1 (86–110 mph)</h4>
+                    <p>Moderate damage: roofs stripped, mobile homes damaged.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <img src="{{ url_for('static', filename='images/ef2.jpg') }}" class="card-img-top">
+                <div class="card-body">
+                    <h4>EF2 (111–135 mph)</h4>
+                    <p>Considerable damage: roofs torn off, trees uprooted.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <img src="{{ url_for('static', filename='images/ef3.jpg') }}" class="card-img-top">
+                <div class="card-body">
+                    <h4>EF3 (136–165 mph)</h4>
+                    <p>Severe damage: entire floors of buildings destroyed.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <img src="{{ url_for('static', filename='images/ef4.jpg') }}" class="card-img-top">
+                <div class="card-body">
+                    <h4>EF4 (166–200 mph)</h4>
+                    <p>Devastating damage: houses leveled, cars thrown.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card bg-dark text-white">
+                <img src="{{ url_for('static', filename='images/ef5.jpg') }}" class="card-img-top">
+                <div class="card-body">
+                    <h4>EF5 (>200 mph)</h4>
+                    <p>Incredible damage: complete destruction of structures.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

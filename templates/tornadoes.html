@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Tornado Database{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">Tornado Database</h1>
+
+<input type="text" id="searchInput" class="form-control mb-3"
+       placeholder="Search tornadoes...">
+
+<table class="table table-bordered table-hover" id="tornadoTable">
+
+    <thead class="table-dark">
+        <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Wind Speed</th>
+            <th>Date</th>
+            <th>State</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for tornado in tornadoes %}
+        <tr>
+            <td>{{ tornado.tornado_name }}</td>
+            <td>{{ tornado.category }}</td>
+            <td>{{ tornado.wind_speed }} mph</td>
+            <td>{{ tornado.date_occurred }}</td>
+            <td>{{ tornado.state_name }}</td>
+            <td>{{ tornado.description }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+
+</table>
+
+{% endblock %}
