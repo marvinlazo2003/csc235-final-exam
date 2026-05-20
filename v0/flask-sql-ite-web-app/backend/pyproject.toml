@@ -1,0 +1,9 @@
+[project]
+name = "tornado-tracker"
+version = "0.1.0"
+description = "Flask tornado tracking application with SQLite"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0.0",
+    "requests>=2.31.0"
+]

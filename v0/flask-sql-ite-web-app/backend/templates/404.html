@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - Tornado Tracker{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 4rem auto; text-align: center;">
+    <div style="font-size: 6rem; font-weight: 700; color: var(--primary); opacity: 0.2; line-height: 1;">404</div>
+    <h1 style="color: var(--primary); margin-bottom: 1rem;">Page Not Found</h1>
+    <p style="color: var(--text-light); margin-bottom: 2rem;">
+        The page you are looking for might have been removed, had its name changed, 
+        or is temporarily unavailable.
+    </p>
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <a href="{{ url_for('home') }}" class="btn btn-primary">Return Home</a>
+        <a href="{{ url_for('tornadoes_list') }}" class="btn btn-outline">Browse Tornadoes</a>
+    </div>
+</div>
+{% endblock %}

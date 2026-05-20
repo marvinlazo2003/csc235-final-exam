@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Report Submitted - Tornado Tracker{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 2rem auto; text-align: center;">
+    <div class="card" style="padding: 3rem 2rem;">
+        <div style="width: 80px; height: 80px; background: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        
+        <h1 style="color: var(--primary); margin-bottom: 1rem;">Report Submitted Successfully!</h1>
+        
+        <p style="color: var(--text-light); margin-bottom: 2rem; line-height: 1.7;">
+            Thank you for contributing to our tornado tracking database. 
+            Your report has been received and will be reviewed by our team.
+            Once verified, it will appear on the relevant tornado detail page.
+        </p>
+        
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="{{ url_for('submit_report') }}" class="btn btn-primary">Submit Another Report</a>
+            <a href="{{ url_for('tornadoes_list') }}" class="btn btn-outline">Browse Tornadoes</a>
+            <a href="{{ url_for('home') }}" class="btn btn-outline">Return Home</a>
+        </div>
+    </div>
+    
+    <!-- Clear saved draft from localStorage -->
+    <script>
+        localStorage.removeItem('tornadoReportDraft');
+    </script>
+</div>
+{% endblock %}

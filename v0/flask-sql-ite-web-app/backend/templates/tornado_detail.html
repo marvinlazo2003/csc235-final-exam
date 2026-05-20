@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tornado.city }}, {{ tornado.abbreviation }} Tornado - Tornado Tracker{% endblock %}
+
+{% block content %}
+<!-- Detail Header -->
+<div class="detail-header">
+    <div>
+        <a href="{{ url_for('tornadoes_list') }}" class="btn btn-small btn-outline" style="margin-bottom: 1rem;">
+            &larr; Back to List
+        </a>
+        <div class="detail-title">
+            <span class="ef-badge ef-{{ tornado.ef_rating }}" style="width: 50px; height: 50px; font-size: 1.1rem;">EF{{ tornado.ef_rating }}</span>
+            <div>
+                <h1>{{ tornado.city }}, {{ tornado.abbreviation }}</h1>
+                <div class="detail-meta">
+                    <span>{{ tornado.date }}</span>
+                    <span>{{ tornado.state_name }}</span>
+                    <span>{{ tornado.region }} Region</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <a href="{{ url_for('submit_report') }}?tornado_id={{ tornado.id }}" class="btn btn-secondary">
+        Add Report for This Tornado
+    </a>
+</div>
+
+<!-- Tornado Info Grid -->
+<div class="detail-grid">
+    <!-- Basic Information -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Tornado Details</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Date</span>
+            <span class="info-value">{{ tornado.date }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">EF Rating</span>
+            <span class="info-value">EF{{ tornado.ef_rating }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Width</span>
+            <span class="info-value">{{ tornado.width_yards or 'N/A' }} yards</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Path Length</span>
+            <span class="info-value">{{ tornado.length_miles or 'N/A' }} miles</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Location</span>
+            <span class="info-value">{{ tornado.city }}, {{ tornado.state_name }}</span>
+        </div>
+    </div>
+    
+    <!-- Impact Statistics -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Impact Statistics</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Fatalities</span>
+            <span class="info-value" style="color: {{ 'var(--danger)' if tornado.fatalities > 0 else 'inherit' }};">{{ tornado.fatalities }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Injuries</span>
+            <span class="info-value" style="color: {{ 'var(--warning)' if tornado.injuries > 0 else 'inherit' }};">{{ tornado.injuries }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Estimated Damage</span>
+            <span class="info-value">${{ "{:,.0f}".format(tornado.damage_cost) if tornado.damage_cost else 'N/A' }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">User Reports</span>
+            <span class="info-value">{{ reports|length }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Description -->
+{% if tornado.description %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Description</span>
+    </div>
+    <p>{{ tornado.description }}</p>
+</div>
+{% endif %}
+
+<!-- Visual Representation -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Visual Scale Comparison</span>
+    </div>
+    <div id="scale-comparison" style="padding: 1rem 0;">
+        <!-- Width visualization -->
+        <div style="margin-bottom: 2rem;">
+            <p style="margin-bottom: 0.5rem; color: var(--text-light);">Tornado Width: <strong>{{ tornado.width_yards or 0 }} yards</strong></p>
+            <div style="background: var(--border); border-radius: 4px; height: 30px; overflow: hidden; position: relative;">
+                <div id="width-bar" style="background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%); height: 100%; width: 0%; transition: width 1s ease; border-radius: 4px;"></div>
+                <span style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: var(--text-light);">Max recorded: ~2600 yds</span>
+            </div>
+        </div>
+        
+        <!-- Path length visualization -->
+        <div>
+            <p style="margin-bottom: 0.5rem; color: var(--text-light);">Path Length: <strong>{{ tornado.length_miles or 0 }} miles</strong></p>
+            <div style="background: var(--border); border-radius: 4px; height: 30px; overflow: hidden; position: relative;">
+                <div id="length-bar" style="background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%); height: 100%; width: 0%; transition: width 1s ease; border-radius: 4px;"></div>
+                <span style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: var(--text-light);">Max recorded: ~219 mi</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Weather Check for Location -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Current Weather in {{ tornado.city }}</span>
+    </div>
+    <div id="location-weather" style="min-height: 100px; display: flex; align-items: center; justify-content: center;">
+        <span class="spinner" style="border-color: var(--primary); border-top-color: var(--secondary); width: 30px; height: 30px;"></span>
+    </div>
+</div>
+
+<!-- User Reports -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Eyewitness Reports ({{ reports|length }})</span>
+        <a href="{{ url_for('submit_report') }}?tornado_id={{ tornado.id }}" class="btn btn-small btn-primary">Add Report</a>
+    </div>
+    
+    {% if reports %}
+    <div id="reports-list">
+        {% for report in reports %}
+        <div class="report-item">
+            <div class="report-header">
+                <div>
+                    <span class="report-name">{{ report.reporter_name }}</span>
+                    {% if report.verified %}
+                    <span class="verified-badge">Verified</span>
+                    {% else %}
+                    <span class="unverified-badge">Unverified</span>
+                    {% endif %}
+                </div>
+                <span class="report-date">{{ report.sighting_date }}</span>
+            </div>
+            <p style="margin-bottom: 0.5rem;"><strong>Location:</strong> {{ report.location_description }}</p>
+            {% if report.wind_speed_estimate %}
+            <p style="margin-bottom: 0.5rem;"><strong>Est. Wind Speed:</strong> {{ report.wind_speed_estimate }} mph</p>
+            {% endif %}
+            {% if report.damage_description %}
+            <p style="color: var(--text-light);">{{ report.damage_description }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="color: var(--text-light); text-align: center; padding: 2rem;">
+        No eyewitness reports yet. <a href="{{ url_for('submit_report') }}?tornado_id={{ tornado.id }}">Be the first to report!</a>
+    </p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate scale bars
+    const widthYards = {{ tornado.width_yards or 0 }};
+    const lengthMiles = {{ tornado.length_miles or 0 }};
+    
+    setTimeout(() => {
+        // Width percentage (max ~2600 yards recorded)
+        const widthPercent = Math.min((widthYards / 2600) * 100, 100);
+        document.getElementById('width-bar').style.width = widthPercent + '%';
+        
+        // Length percentage (max ~219 miles recorded - Tri-State tornado)
+        const lengthPercent = Math.min((lengthMiles / 219) * 100, 100);
+        document.getElementById('length-bar').style.width = lengthPercent + '%';
+    }, 300);
+    
+    // Fetch current weather for this location
+    fetchLocationWeather('{{ tornado.city }}');
+});
+
+async function fetchLocationWeather(city) {
+    const container = document.getElementById('location-weather');
+    
+    try {
+        const response = await fetch(`/api/weather/${encodeURIComponent(city)}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            container.innerHTML = '<p style="color: var(--text-light);">Weather data unavailable for this location.</p>';
+            return;
+        }
+        
+        const tempF = Math.round(data.current.temperature * 9/5 + 32);
+        const windMph = Math.round(data.current.wind_speed * 0.621);
+        const gustsMph = Math.round(data.current.wind_gusts * 0.621);
+        
+        container.innerHTML = `
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: center;">
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary);">${tempF}&deg;F</div>
+                    <div style="color: var(--text-light);">${getWeatherDescription(data.current.weather_code)}</div>
+                </div>
+                <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                    <div>
+                        <div style="font-size: 0.85rem; color: var(--text-light);">Wind</div>
+                        <div style="font-weight: 600;">${windMph} mph</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85rem; color: var(--text-light);">Gusts</div>
+                        <div style="font-weight: 600; color: ${gustsMph > 40 ? 'var(--danger)' : 'inherit'};">${gustsMph} mph</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85rem; color: var(--text-light);">Humidity</div>
+                        <div style="font-weight: 600;">${data.current.humidity}%</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error fetching weather:', error);
+        container.innerHTML = '<p style="color: var(--text-light);">Unable to load weather data.</p>';
+    }
+}
+</script>
+{% endblock %}

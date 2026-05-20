@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Report a Tornado Sighting - Tornado Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Report a Tornado Sighting</h1>
+    <p>Help us track tornado activity by submitting your eyewitness report</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Sighting Report Form</span>
+    </div>
+    
+    <form method="POST" action="{{ url_for('submit_report') }}" id="report-form" onsubmit="return validateForm()">
+        <!-- Reporter Information -->
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">Your Information</h3>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="reporter_name" class="required">Full Name</label>
+                <input type="text" id="reporter_name" name="reporter_name" required placeholder="Enter your full name" maxlength="100">
+                <span class="form-hint">This will be displayed with your report</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="reporter_email" class="required">Email Address</label>
+                <input type="email" id="reporter_email" name="reporter_email" required placeholder="your.email@example.com">
+                <span class="form-hint">We may contact you for verification</span>
+                <span id="email-error" class="form-hint" style="color: var(--danger); display: none;">Please enter a valid email address</span>
+            </div>
+        </div>
+        
+        <!-- Sighting Details -->
+        <h3 style="margin: 2rem 0 1rem; color: var(--primary);">Sighting Details</h3>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="tornado_id">Related Tornado Event (Optional)</label>
+                <select id="tornado_id" name="tornado_id">
+                    <option value="">-- Select if reporting about a known tornado --</option>
+                    {% for tornado in tornadoes %}
+                    <option value="{{ tornado.id }}" {{ 'selected' if request.args.get('tornado_id') == tornado.id|string else '' }}>
+                        {{ tornado.date }} - {{ tornado.city }}, {{ tornado.abbreviation }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <span class="form-hint">Select a tornado from our database if this report is about an existing event</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="sighting_date" class="required">Date of Sighting</label>
+                <input type="date" id="sighting_date" name="sighting_date" required>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="location_description" class="required">Location Description</label>
+            <textarea id="location_description" name="location_description" required placeholder="Describe where you saw the tornado (e.g., 'Near the intersection of Main St and Oak Ave, about 2 miles east of downtown')" maxlength="500"></textarea>
+            <span class="form-hint">Be as specific as possible - include street names, landmarks, or GPS coordinates</span>
+            <span id="location-count" class="form-hint">0/500 characters</span>
+        </div>
+        
+        <div class="form-group">
+            <label for="wind_speed_estimate">Estimated Wind Speed (mph)</label>
+            <input type="number" id="wind_speed_estimate" name="wind_speed_estimate" min="40" max="320" placeholder="e.g., 120">
+            <span class="form-hint">Optional - your best estimate of wind speed (40-320 mph)</span>
+        </div>
+        
+        <div class="form-group">
+            <label for="damage_description">Damage Description</label>
+            <textarea id="damage_description" name="damage_description" placeholder="Describe any damage you observed (buildings, vehicles, trees, power lines, etc.)" maxlength="1000"></textarea>
+            <span class="form-hint">Optional - describe what kind of damage you witnessed</span>
+            <span id="damage-count" class="form-hint">0/1000 characters</span>
+        </div>
+        
+        <!-- Form Actions -->
+        <div style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+                Submit Report
+            </button>
+            <button type="button" class="btn btn-outline" onclick="clearForm()">
+                Clear Form
+            </button>
+        </div>
+        
+        <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-light);">
+            <strong>Note:</strong> All reports are reviewed before being marked as verified. 
+            False reports may be removed from our system.
+        </p>
+    </form>
+</div>
+
+<!-- Safety Information -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Tornado Safety Tips</span>
+    </div>
+    <ul style="list-style: disc; margin-left: 1.5rem; line-height: 1.8;">
+        <li><strong>Never chase tornadoes</strong> - Leave storm chasing to trained professionals</li>
+        <li><strong>Seek shelter immediately</strong> if a tornado warning is issued for your area</li>
+        <li><strong>Go to the lowest floor</strong> of a sturdy building, away from windows</li>
+        <li><strong>Cover your head</strong> with your arms and get under sturdy furniture if possible</li>
+        <li><strong>If outdoors</strong>, lie flat in a ditch or low-lying area and cover your head</li>
+        <li><strong>Never try to outrun a tornado</strong> in a vehicle on congested roads</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Set default date to today
+document.getElementById('sighting_date').valueAsDate = new Date();
+
+// Character counters
+document.getElementById('location_description').addEventListener('input', function() {
+    document.getElementById('location-count').textContent = this.value.length + '/500 characters';
+});
+
+document.getElementById('damage_description').addEventListener('input', function() {
+    document.getElementById('damage-count').textContent = this.value.length + '/1000 characters';
+});
+
+// Email validation
+document.getElementById('reporter_email').addEventListener('blur', function() {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const errorSpan = document.getElementById('email-error');
+    
+    if (this.value && !emailRegex.test(this.value)) {
+        errorSpan.style.display = 'block';
+        this.style.borderColor = 'var(--danger)';
+    } else {
+        errorSpan.style.display = 'none';
+        this.style.borderColor = '';
+    }
+});
+
+// Form validation
+function validateForm() {
+    const form = document.getElementById('report-form');
+    const requiredFields = form.querySelectorAll('[required]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.style.borderColor = 'var(--danger)';
+            isValid = false;
+        } else {
+            field.style.borderColor = '';
+        }
+    });
+    
+    // Email validation
+    const email = document.getElementById('reporter_email');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.value)) {
+        email.style.borderColor = 'var(--danger)';
+        document.getElementById('email-error').style.display = 'block';
+        isValid = false;
+    }
+    
+    // Wind speed range validation
+    const windSpeed = document.getElementById('wind_speed_estimate');
+    if (windSpeed.value && (windSpeed.value < 40 || windSpeed.value > 320)) {
+        windSpeed.style.borderColor = 'var(--danger)';
+        alert('Wind speed estimate must be between 40 and 320 mph');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        alert('Please fill in all required fields correctly.');
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+    submitBtn.disabled = true;
+    
+    return true;
+}
+
+// Clear form
+function clearForm() {
+    if (confirm('Are you sure you want to clear the form? All entered data will be lost.')) {
+        document.getElementById('report-form').reset();
+        document.getElementById('sighting_date').valueAsDate = new Date();
+        document.getElementById('location-count').textContent = '0/500 characters';
+        document.getElementById('damage-count').textContent = '0/1000 characters';
+        
+        // Reset any error states
+        document.querySelectorAll('input, textarea, select').forEach(field => {
+            field.style.borderColor = '';
+        });
+        document.getElementById('email-error').style.display = 'none';
+    }
+}
+
+// Auto-save to localStorage
+function saveFormData() {
+    const formData = {
+        reporter_name: document.getElementById('reporter_name').value,
+        reporter_email: document.getElementById('reporter_email').value,
+        location_description: document.getElementById('location_description').value,
+        wind_speed_estimate: document.getElementById('wind_speed_estimate').value,
+        damage_description: document.getElementById('damage_description').value
+    };
+    localStorage.setItem('tornadoReportDraft', JSON.stringify(formData));
+}
+
+function loadFormData() {
+    const saved = localStorage.getItem('tornadoReportDraft');
+    if (saved) {
+        const formData = JSON.parse(saved);
+        if (formData.reporter_name) document.getElementById('reporter_name').value = formData.reporter_name;
+        if (formData.reporter_email) document.getElementById('reporter_email').value = formData.reporter_email;
+        // Don't restore location/damage as they're likely context-specific
+    }
+}
+
+// Save form data periodically
+document.querySelectorAll('input, textarea').forEach(field => {
+    field.addEventListener('input', saveFormData);
+});
+
+// Load saved data on page load
+document.addEventListener('DOMContentLoaded', loadFormData);
+</script>
+{% endblock %}

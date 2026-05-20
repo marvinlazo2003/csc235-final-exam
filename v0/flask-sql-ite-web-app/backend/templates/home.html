@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Tornado Tracker - Home{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Welcome to Tornado Tracker</h1>
+    <p>Track, analyze, and report tornado events across the United States</p>
+</div>
+
+<!-- Weather Widget -->
+<div class="weather-widget" id="weather-widget">
+    <h3>Current Weather Conditions</h3>
+    <div id="weather-content">
+        <div class="weather-current">
+            <div class="weather-temp" id="weather-temp">--&deg;F</div>
+            <div>
+                <div id="weather-city">Enter a city below</div>
+                <div id="weather-condition">--</div>
+            </div>
+        </div>
+        <div class="weather-details">
+            <span id="weather-wind">Wind: -- mph</span>
+            <span id="weather-gusts">Gusts: -- mph</span>
+            <span id="weather-humidity">Humidity: --%</span>
+        </div>
+    </div>
+    <div class="weather-search">
+        <input type="text" id="city-input" placeholder="Enter city name (e.g., Oklahoma City)" />
+        <button onclick="fetchWeather()" id="weather-btn">Check Weather</button>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value" id="stat-tornadoes">{{ total_tornadoes }}</div>
+        <div class="stat-label">Recorded Tornadoes</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-fatalities">{{ total_fatalities }}</div>
+        <div class="stat-label">Total Fatalities</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-injuries">{{ total_injuries }}</div>
+        <div class="stat-label">Total Injuries</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-reports">{{ total_reports }}</div>
+        <div class="stat-label">User Reports</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Quick Actions</span>
+    </div>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <a href="{{ url_for('tornadoes_list') }}" class="btn btn-primary">Browse All Tornadoes</a>
+        <a href="{{ url_for('submit_report') }}" class="btn btn-secondary">Report a Sighting</a>
+        <a href="{{ url_for('statistics') }}" class="btn btn-outline">View Statistics</a>
+    </div>
+</div>
+
+<!-- Recent Tornadoes -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Recent Tornado Events</span>
+        <a href="{{ url_for('tornadoes_list') }}" class="btn btn-small btn-outline">View All</a>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Location</th>
+                    <th>EF Rating</th>
+                    <th>Fatalities</th>
+                    <th>Damage</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="recent-tornadoes">
+                {% for tornado in recent_tornadoes %}
+                <tr>
+                    <td>{{ tornado.date }}</td>
+                    <td>{{ tornado.city }}, {{ tornado.abbreviation }}</td>
+                    <td><span class="ef-badge ef-{{ tornado.ef_rating }}">EF{{ tornado.ef_rating }}</span></td>
+                    <td>{{ tornado.fatalities }}</td>
+                    <td>${{ "{:,.0f}".format(tornado.damage_cost) if tornado.damage_cost else 'N/A' }}</td>
+                    <td><a href="{{ url_for('tornado_detail', tornado_id=tornado.id) }}" class="btn btn-small btn-outline">Details</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- EF Scale Info -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Enhanced Fujita (EF) Scale</span>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rating</th>
+                    <th>Wind Speed</th>
+                    <th>Typical Damage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="ef-badge ef-0">EF0</span></td>
+                    <td>65-85 mph</td>
+                    <td>Light damage: branches broken, shallow-rooted trees pushed over</td>
+                </tr>
+                <tr>
+                    <td><span class="ef-badge ef-1">EF1</span></td>
+                    <td>86-110 mph</td>
+                    <td>Moderate damage: roof surfaces peeled, mobile homes overturned</td>
+                </tr>
+                <tr>
+                    <td><span class="ef-badge ef-2">EF2</span></td>
+                    <td>111-135 mph</td>
+                    <td>Considerable damage: roofs torn off, mobile homes destroyed</td>
+                </tr>
+                <tr>
+                    <td><span class="ef-badge ef-3">EF3</span></td>
+                    <td>136-165 mph</td>
+                    <td>Severe damage: entire stories of homes destroyed, heavy cars lifted</td>
+                </tr>
+                <tr>
+                    <td><span class="ef-badge ef-4">EF4</span></td>
+                    <td>166-200 mph</td>
+                    <td>Devastating damage: well-constructed homes leveled, cars thrown</td>
+                </tr>
+                <tr>
+                    <td><span class="ef-badge ef-5">EF5</span></td>
+                    <td>200+ mph</td>
+                    <td>Incredible damage: strong frame houses swept away, structures debarked</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Animate stat counters on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const stats = document.querySelectorAll('.stat-value');
+    stats.forEach(stat => {
+        const finalValue = parseInt(stat.textContent.replace(/,/g, ''));
+        if (!isNaN(finalValue) && finalValue > 0) {
+            animateCounter(stat, finalValue);
+        }
+    });
+});
+
+function animateCounter(element, target) {
+    let current = 0;
+    const duration = 1000;
+    const increment = target / (duration / 16);
+    
+    function update() {
+        current += increment;
+        if (current >= target) {
+            element.textContent = formatNumber(target);
+        } else {
+            element.textContent = formatNumber(Math.floor(current));
+            requestAnimationFrame(update);
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// Weather API integration
+async function fetchWeather() {
+    const cityInput = document.getElementById('city-input');
+    const city = cityInput.value.trim();
+    
+    if (!city) {
+        alert('Please enter a city name');
+        return;
+    }
+    
+    const btn = document.getElementById('weather-btn');
+    const originalText = btn.textContent;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/weather/${encodeURIComponent(city)}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+        
+        // Update weather display
+        const tempF = Math.round(data.current.temperature * 9/5 + 32);
+        document.getElementById('weather-temp').textContent = tempF + '°F';
+        document.getElementById('weather-city').textContent = data.city;
+        document.getElementById('weather-condition').textContent = getWeatherDescription(data.current.weather_code);
+        document.getElementById('weather-wind').textContent = `Wind: ${Math.round(data.current.wind_speed * 0.621)} mph`;
+        document.getElementById('weather-gusts').textContent = `Gusts: ${Math.round(data.current.wind_gusts * 0.621)} mph`;
+        document.getElementById('weather-humidity').textContent = `Humidity: ${data.current.humidity}%`;
+        
+        // Highlight if conditions could be severe
+        const windMph = data.current.wind_gusts * 0.621;
+        if (windMph > 50) {
+            document.getElementById('weather-widget').style.background = 'linear-gradient(135deg, #c0392b 0%, #e74c3c 100%)';
+        } else if (windMph > 30) {
+            document.getElementById('weather-widget').style.background = 'linear-gradient(135deg, #d35400 0%, #e67e22 100%)';
+        } else {
+            document.getElementById('weather-widget').style.background = 'linear-gradient(135deg, #1e3a5f 0%, #2d5a8b 100%)';
+        }
+        
+    } catch (error) {
+        console.error('Error fetching weather:', error);
+        alert('Failed to fetch weather data. Please try again.');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+// Allow Enter key to search
+document.getElementById('city-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        fetchWeather();
+    }
+});
+</script>
+{% endblock %}

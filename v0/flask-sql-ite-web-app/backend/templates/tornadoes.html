@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Tornadoes - Tornado Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Browse Tornadoes</h1>
+    <p>Explore recorded tornado events with advanced filtering</p>
+</div>
+
+<!-- Filters -->
+<form class="filters" method="GET" action="{{ url_for('tornadoes_list') }}" id="filter-form">
+    <div class="filter-group">
+        <label for="state-filter">State</label>
+        <select name="state" id="state-filter" onchange="document.getElementById('filter-form').submit()">
+            <option value="">All States</option>
+            {% for state in states %}
+            <option value="{{ state.id }}" {{ 'selected' if current_state == state.id|string else '' }}>
+                {{ state.name }} ({{ state.abbreviation }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="ef-filter">EF Rating</label>
+        <select name="ef_rating" id="ef-filter" onchange="document.getElementById('filter-form').submit()">
+            <option value="">All Ratings</option>
+            {% for i in range(6) %}
+            <option value="{{ i }}" {{ 'selected' if current_ef == i|string else '' }}>EF{{ i }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label for="year-filter">Year</label>
+        <select name="year" id="year-filter" onchange="document.getElementById('filter-form').submit()">
+            <option value="">All Years</option>
+            {% for year in years %}
+            <option value="{{ year }}" {{ 'selected' if current_year == year else '' }}>{{ year }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="filter-group" style="justify-content: flex-end;">
+        <label>&nbsp;</label>
+        <a href="{{ url_for('tornadoes_list') }}" class="btn btn-small btn-outline">Clear Filters</a>
+    </div>
+</form>
+
+<!-- Results Count -->
+<p style="margin-bottom: 1rem; color: var(--text-light);">
+    Showing <strong id="result-count">{{ tornadoes|length }}</strong> tornado(es)
+</p>
+
+<!-- Tornadoes Table -->
+<div class="card">
+    <div class="table-container">
+        <table id="tornadoes-table">
+            <thead>
+                <tr>
+                    <th style="cursor: pointer;" onclick="sortTable(0)">Date <span class="sort-indicator"></span></th>
+                    <th style="cursor: pointer;" onclick="sortTable(1)">Location <span class="sort-indicator"></span></th>
+                    <th style="cursor: pointer;" onclick="sortTable(2)">EF Rating <span class="sort-indicator"></span></th>
+                    <th style="cursor: pointer;" onclick="sortTable(3)">Width (yds) <span class="sort-indicator"></span></th>
+                    <th style="cursor: pointer;" onclick="sortTable(4)">Length (mi) <span class="sort-indicator"></span></th>
+                    <th style="cursor: pointer;" onclick="sortTable(5)">Fatalities <span class="sort-indicator"></span></th>
+                    <th style="cursor: pointer;" onclick="sortTable(6)">Damage <span class="sort-indicator"></span></th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tornado in tornadoes %}
+                <tr data-id="{{ tornado.id }}">
+                    <td data-sort="{{ tornado.date }}">{{ tornado.date }}</td>
+                    <td>{{ tornado.city }}, {{ tornado.abbreviation }}</td>
+                    <td data-sort="{{ tornado.ef_rating }}">
+                        <span class="ef-badge ef-{{ tornado.ef_rating }}">EF{{ tornado.ef_rating }}</span>
+                    </td>
+                    <td data-sort="{{ tornado.width_yards or 0 }}">{{ tornado.width_yards or 'N/A' }}</td>
+                    <td data-sort="{{ tornado.length_miles or 0 }}">{{ tornado.length_miles or 'N/A' }}</td>
+                    <td data-sort="{{ tornado.fatalities }}">{{ tornado.fatalities }}</td>
+                    <td data-sort="{{ tornado.damage_cost or 0 }}">${{ "{:,.0f}".format(tornado.damage_cost) if tornado.damage_cost else 'N/A' }}</td>
+                    <td>
+                        <a href="{{ url_for('tornado_detail', tornado_id=tornado.id) }}" class="btn btn-small btn-outline">Details</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem;">
+                        No tornadoes found matching your criteria. Try adjusting the filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Live Search -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Quick Search</span>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+        <input type="text" id="search-input" placeholder="Type to search by city name..." oninput="filterTable(this.value)">
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Client-side table filtering
+function filterTable(query) {
+    const table = document.getElementById('tornadoes-table');
+    const rows = table.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+    
+    query = query.toLowerCase().trim();
+    
+    rows.forEach(row => {
+        const city = row.cells[1].textContent.toLowerCase();
+        if (city.includes(query) || query === '') {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('result-count').textContent = visibleCount;
+}
+
+// Client-side table sorting
+let currentSortColumn = -1;
+let sortAscending = true;
+
+function sortTable(columnIndex) {
+    const table = document.getElementById('tornadoes-table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Toggle sort direction if same column
+    if (currentSortColumn === columnIndex) {
+        sortAscending = !sortAscending;
+    } else {
+        sortAscending = true;
+        currentSortColumn = columnIndex;
+    }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aVal = a.cells[columnIndex].getAttribute('data-sort') || a.cells[columnIndex].textContent;
+        let bVal = b.cells[columnIndex].getAttribute('data-sort') || b.cells[columnIndex].textContent;
+        
+        // Try to parse as numbers
+        const aNum = parseFloat(aVal.replace(/[,$]/g, ''));
+        const bNum = parseFloat(bVal.replace(/[,$]/g, ''));
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return sortAscending ? aNum - bNum : bNum - aNum;
+        }
+        
+        // String comparison
+        return sortAscending 
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Update sort indicators
+    const headers = table.querySelectorAll('th');
+    headers.forEach((th, i) => {
+        const indicator = th.querySelector('.sort-indicator');
+        if (indicator) {
+            if (i === columnIndex) {
+                indicator.textContent = sortAscending ? ' ▲' : ' ▼';
+            } else {
+                indicator.textContent = '';
+            }
+        }
+    });
+}
+
+// Highlight row on hover with keyboard navigation
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('#tornadoes-table tbody tr');
+    let currentRowIndex = -1;
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            
+            // Remove highlight from current row
+            if (currentRowIndex >= 0) {
+                rows[currentRowIndex].style.backgroundColor = '';
+            }
+            
+            // Move to next/previous row
+            if (e.key === 'ArrowDown') {
+                currentRowIndex = Math.min(currentRowIndex + 1, rows.length - 1);
+            } else {
+                currentRowIndex = Math.max(currentRowIndex - 1, 0);
+            }
+            
+            // Highlight new row
+            rows[currentRowIndex].style.backgroundColor = 'rgba(30, 58, 95, 0.1)';
+            rows[currentRowIndex].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter' && currentRowIndex >= 0) {
+            // Navigate to detail page on Enter
+            const link = rows[currentRowIndex].querySelector('a');
+            if (link) {
+                window.location.href = link.href;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

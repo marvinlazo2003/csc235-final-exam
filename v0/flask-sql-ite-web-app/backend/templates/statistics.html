@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - Tornado Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Tornado Statistics</h1>
+    <p>Data visualizations and analysis of tornado patterns</p>
+</div>
+
+<!-- Chart Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+    
+    <!-- EF Rating Distribution -->
+    <div class="chart-container">
+        <h3>Tornadoes by EF Rating</h3>
+        <canvas id="ef-chart" class="chart-canvas"></canvas>
+        <div id="ef-legend" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; justify-content: center;"></div>
+    </div>
+    
+    <!-- By State -->
+    <div class="chart-container">
+        <h3>Tornadoes by State</h3>
+        <canvas id="state-chart" class="chart-canvas"></canvas>
+    </div>
+    
+    <!-- By Month -->
+    <div class="chart-container">
+        <h3>Tornadoes by Month</h3>
+        <canvas id="month-chart" class="chart-canvas"></canvas>
+        <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 0.5rem; text-align: center;">
+            Peak tornado season is typically April through June
+        </p>
+    </div>
+    
+    <!-- Damage by State -->
+    <div class="chart-container">
+        <h3>Total Damage by State (Top 10)</h3>
+        <canvas id="damage-chart" class="chart-canvas"></canvas>
+    </div>
+</div>
+
+<!-- Data Tables -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+    
+    <!-- EF Rating Table -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Count by EF Rating</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rating</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set total = by_rating|sum(attribute='count') %}
+                {% for row in by_rating %}
+                <tr>
+                    <td><span class="ef-badge ef-{{ row.ef_rating }}">EF{{ row.ef_rating }}</span></td>
+                    <td>{{ row.count }}</td>
+                    <td>{{ "%.1f"|format(row.count / total * 100) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- States Table -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Count by State</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>State</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in by_state %}
+                <tr>
+                    <td>{{ row.name }} ({{ row.abbreviation }})</td>
+                    <td>{{ row.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Interactive Analysis Section -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <span class="card-title">Quick Analysis Tool</span>
+    </div>
+    <p style="margin-bottom: 1rem; color: var(--text-light);">
+        Select parameters to filter and analyze tornado data in real-time.
+    </p>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        <div class="filter-group">
+            <label for="analysis-rating">Minimum EF Rating</label>
+            <select id="analysis-rating" onchange="updateAnalysis()">
+                <option value="0">EF0+</option>
+                <option value="1">EF1+</option>
+                <option value="2">EF2+</option>
+                <option value="3">EF3+</option>
+                <option value="4">EF4+</option>
+                <option value="5">EF5 only</option>
+            </select>
+        </div>
+    </div>
+    <div id="analysis-results" style="padding: 1rem; background: var(--background); border-radius: 8px;">
+        <p>Select a minimum rating to see filtered statistics.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Chart.js-like simple canvas charts
+const chartColors = {
+    primary: '#1e3a5f',
+    secondary: '#e74c3c',
+    accent: '#f39c12',
+    success: '#28a745',
+    info: '#17a2b8',
+    purple: '#9b59b6'
+};
+
+const efColors = ['#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#e74c3c', '#9b59b6'];
+
+// Data from backend
+const efData = {{ by_rating | tojson }};
+const stateData = {{ by_state | tojson }};
+const monthData = {{ by_month | tojson }};
+const damageData = {{ damage_by_state | tojson }};
+
+// Month names
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+document.addEventListener('DOMContentLoaded', function() {
+    drawPieChart('ef-chart', efData.map(d => d.count), efData.map(d => 'EF' + d.ef_rating), efColors);
+    drawBarChart('state-chart', stateData.map(d => d.count), stateData.map(d => d.abbreviation), chartColors.primary);
+    
+    // Transform month data
+    const monthCounts = new Array(12).fill(0);
+    monthData.forEach(d => {
+        const monthIndex = parseInt(d.month) - 1;
+        monthCounts[monthIndex] = d.count;
+    });
+    drawBarChart('month-chart', monthCounts, monthNames, chartColors.secondary);
+    
+    drawBarChart('damage-chart', 
+        damageData.map(d => d.total_damage / 1000000), 
+        damageData.map(d => d.name),
+        chartColors.accent
+    );
+    
+    // Create EF legend
+    createLegend('ef-legend', efData.map(d => 'EF' + d.ef_rating), efColors);
+});
+
+function drawPieChart(canvasId, data, labels, colors) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 250;
+    
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) - 20;
+    
+    const total = data.reduce((a, b) => a + b, 0);
+    let startAngle = -Math.PI / 2;
+    
+    data.forEach((value, i) => {
+        const sliceAngle = (value / total) * 2 * Math.PI;
+        
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        
+        // Add label
+        const labelAngle = startAngle + sliceAngle / 2;
+        const labelX = centerX + (radius * 0.7) * Math.cos(labelAngle);
+        const labelY = centerY + (radius * 0.7) * Math.sin(labelAngle);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(value, labelX, labelY);
+        
+        startAngle += sliceAngle;
+    });
+}
+
+function drawBarChart(canvasId, data, labels, color) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 250;
+    
+    const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+    const chartWidth = canvas.width - padding.left - padding.right;
+    const chartHeight = canvas.height - padding.top - padding.bottom;
+    
+    const maxValue = Math.max(...data) * 1.1;
+    const barWidth = chartWidth / data.length * 0.7;
+    const barGap = chartWidth / data.length * 0.3;
+    
+    // Draw axes
+    ctx.strokeStyle = '#dee2e6';
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, canvas.height - padding.bottom);
+    ctx.lineTo(canvas.width - padding.right, canvas.height - padding.bottom);
+    ctx.stroke();
+    
+    // Draw bars
+    data.forEach((value, i) => {
+        const barHeight = (value / maxValue) * chartHeight;
+        const x = padding.left + (i * (barWidth + barGap)) + barGap / 2;
+        const y = canvas.height - padding.bottom - barHeight;
+        
+        // Bar
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, barWidth, barHeight);
+        
+        // Value label
+        ctx.fillStyle = '#1a1a2e';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        if (canvasId === 'damage-chart') {
+            ctx.fillText('$' + value.toFixed(0) + 'M', x + barWidth / 2, y - 5);
+        } else {
+            ctx.fillText(value, x + barWidth / 2, y - 5);
+        }
+        
+        // X-axis label
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(labels[i], x + barWidth / 2, canvas.height - padding.bottom + 15);
+    });
+}
+
+function createLegend(containerId, labels, colors) {
+    const container = document.getElementById(containerId);
+    labels.forEach((label, i) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display: flex; align-items: center; gap: 0.25rem; font-size: 0.85rem;';
+        item.innerHTML = `
+            <span style="width: 12px; height: 12px; background: ${colors[i]}; border-radius: 2px;"></span>
+            <span>${label}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// Interactive analysis
+let allTornadoData = null;
+
+async function loadTornadoData() {
+    const response = await fetch('/api/tornadoes');
+    allTornadoData = await response.json();
+}
+
+async function updateAnalysis() {
+    if (!allTornadoData) {
+        await loadTornadoData();
+    }
+    
+    const minRating = parseInt(document.getElementById('analysis-rating').value);
+    const filtered = allTornadoData.filter(t => t.ef_rating >= minRating);
+    
+    const totalFatalities = filtered.reduce((sum, t) => sum + (t.fatalities || 0), 0);
+    const totalInjuries = filtered.reduce((sum, t) => sum + (t.injuries || 0), 0);
+    const totalDamage = filtered.reduce((sum, t) => sum + (t.damage_cost || 0), 0);
+    const avgWidth = filtered.length > 0 
+        ? filtered.reduce((sum, t) => sum + (t.width_yards || 0), 0) / filtered.length 
+        : 0;
+    
+    document.getElementById('analysis-results').innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; text-align: center;">
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">${filtered.length}</div>
+                <div style="font-size: 0.85rem; color: var(--text-light);">Tornadoes</div>
+            </div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--danger);">${totalFatalities}</div>
+                <div style="font-size: 0.85rem; color: var(--text-light);">Fatalities</div>
+            </div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">${totalInjuries}</div>
+                <div style="font-size: 0.85rem; color: var(--text-light);">Injuries</div>
+            </div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">${formatCurrency(totalDamage)}</div>
+                <div style="font-size: 0.85rem; color: var(--text-light);">Total Damage</div>
+            </div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">${Math.round(avgWidth)}</div>
+                <div style="font-size: 0.85rem; color: var(--text-light);">Avg Width (yds)</div>
+            </div>
+        </div>
+    `;
+}
+
+// Load data initially
+loadTornadoData();
+</script>
+{% endblock %}
